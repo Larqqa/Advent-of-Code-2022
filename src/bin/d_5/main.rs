@@ -1,5 +1,3 @@
-const EMPTY_CRATE: char = '#';
-
 #[derive(Debug, Clone, Copy)]
 struct Instruction {
     amount: usize,
@@ -13,38 +11,32 @@ impl Instruction {
 }
 
 fn get_input() -> (Vec<Vec<char>>, Vec<Instruction>) {
-    let (crates, instructions) = include_str!("test.txt").split_once("\n\n").unwrap();
-
-    let mut parsed_strings: Vec<Vec<Vec<char>>> = crates
+    let (crates, instructions) = include_str!("input.txt").split_once("\r\n\r\n").unwrap();
+    let mut parsed_rows: Vec<Vec<Vec<char>>> = crates
         .lines()
-        .map(|x| x.chars()
-            .collect::<Vec<char>>()
-            .chunks(x.to_string().len() / 4)
-            // .map(|y| if y[1] == ' ' {EMPTY_CRATE} else {y[1]})
-            .collect::<Vec<Vec<char>>>())
+        .map(|x| x.chars().collect::<Vec<char>>())
+        .map(|y| y.chunks(4).map(|x| x.to_vec()).collect())
         .collect();
-    parsed_strings.pop(); // Remove index line of crates
-
-    println!("{:?}", parsed_strings);
+    parsed_rows.pop(); // remove index line from crates
 
     let mut crates_array: Vec<Vec<char>> = vec![vec![]];
     let mut x = 0;
-    for row in parsed_strings {
+    for row in parsed_rows {
         for c in row {
             if crates_array.len() <= x {
                 crates_array.push(vec![]);
             }
 
-            if c != EMPTY_CRATE {
-                crates_array[x].insert(0, c);
+            // index 1 is the character of the crate, or empty
+            if c[1] != ' ' {
+                crates_array[x].insert(0, c[1]);
             }
             x += 1;
         }
         x = 0;
     }
-    // println!("{:?}", crates_array);
 
-    let i: Vec<Instruction> = instructions
+    let instructions_array: Vec<Instruction> = instructions
         .lines()
         .map(|x| {
             let (ins, to) = x.split_once(" to ").unwrap();
@@ -58,33 +50,35 @@ fn get_input() -> (Vec<Vec<char>>, Vec<Instruction>) {
             )
         })
         .collect();
-    // println!("{:?}", i);
 
-    (crates_array, i)
+    (crates_array, instructions_array)
 }
 
 fn part_one() -> String {
     let (mut crates, instructions) = get_input();
-    println!("{:?}", crates);
-
-    // println!("{:?}", crates);
-    // for ins in instructions {
-    //     for _ in 0..ins.amount {
-    //         let temp = crates[ins.from].pop().unwrap();
-    //         crates[ins.to].push(temp);
-    //     }
-    // }
-    // println!("{:?}", crates);
-
-    // String::from_iter(crates.iter().map(|c| c.last().unwrap()))
-    String::new()
+    for ins in instructions {
+        for _ in 0..ins.amount {
+            let temp = crates[ins.from].pop().unwrap();
+            crates[ins.to].push(temp);
+        }
+    }
+    String::from_iter(crates.iter().map(|c| c.last().unwrap()))
 }
 
-// fn part_two() -> i32 {
-//     0
-// }
+fn part_two() -> String {
+    let (mut crates, instructions) = get_input();
+    for ins in instructions {
+        let mut temp = vec![];
+        for _ in 0..ins.amount {
+            temp.push(crates[ins.from].pop().unwrap());
+        }
+        temp.reverse();
+        crates[ins.to].append(&mut temp);
+    }
+    String::from_iter(crates.iter().map(|c| c.last().unwrap()))
+}
 
 fn main() {
     println!("part one: {}", part_one());
-    // println!("part two: {}", part_two());
+    println!("part two: {}", part_two());
 }
