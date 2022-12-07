@@ -29,95 +29,104 @@ struct File {
     name: String,
 }
 
-fn get_input() {
-    let mut lines: Vec<&str> = include_str!("test.txt").lines().collect();
+fn get_input() -> Directory {
+    let mut lines: Vec<&str> = include_str!("input.txt").lines().collect();
     lines.reverse();
     lines.pop();
 
     let root = Rc::new(RefCell::new(Directory::new(String::from("/"))));
     let mut current = Rc::clone(&root);
+
     while lines.len() > 0 {
         let instruction = lines.pop().unwrap().to_string();
         match &instruction[0..4] {
             "$ cd" => {
+                let cm = current.borrow_mut().clone();
                 let key = instruction.replace("$ cd ", "");
-                // current_dir = *current_dir.children.get(&key).unwrap();
+
+                if key == ".." {
+                    current = Rc::clone(&cm.parent.unwrap());
+                } else {
+                    current = Rc::clone(cm.children.get(&key).unwrap());
+                }
             }
             "$ ls" => {
-                ls(&mut lines, current);
+                let mut directory_contents: Vec<&str> = vec![];
+                while lines.len() > 0 && !lines.last().unwrap().contains("$") {
+                    directory_contents.push(lines.pop().unwrap());
+                }
+
+                let (dir_names, files): (Vec<&str>, Vec<&str>) =
+                    directory_contents.iter().partition(|x| x.contains("dir"));
+
+                let child_dirs = dir_names
+                    .iter()
+                    .map(|x| x.replace("dir ", ""))
+                    .map(|key| {
+                        let mut dir = Directory::new(key);
+                        dir.parent = Some(Rc::clone(&current));
+                        dir
+                    })
+                    .collect::<Vec<Directory>>();
+
+                let mut cm = current.borrow_mut();
+                for child in child_dirs {
+                    cm.children
+                        .insert(child.name.clone(), Rc::new(RefCell::new(child)));
+                }
+
+                cm.files = files
+                    .iter()
+                    .map(|x| {
+                        let (size, name) = x.split_once(" ").unwrap();
+                        File {
+                            size: size.parse().unwrap(),
+                            name: name.to_string(),
+                        }
+                    })
+                    .collect::<Vec<File>>();
             }
             _ => (),
         }
     }
-    println!("{:#?}", root);
+    root.clone().borrow_mut().to_owned()
 }
 
-fn ls(lines: &mut Vec<&str>, current_dir: Rc<RefCell<Directory>>) -> Rc<RefCell<Directory>>{
-    let mut directory_contents: Vec<&str> = vec![];
-    while lines.len() > 0 && !lines.last().unwrap().contains("$") {
-        directory_contents.push(lines.pop().unwrap());
+fn find_dir_sizes(get_all: bool, root: Directory, found: &mut Vec<i128>) -> (&mut Vec<i128>, i128) {
+    let mut total = root.size();
+    for (_, child) in root.children {
+        let (_, total_from_children) = find_dir_sizes(get_all, child.borrow_mut().clone(), found);
+        total += total_from_children;
     }
 
-    let (dirs, files): (Vec<&str>, Vec<&str>) =
-        directory_contents.iter().partition(|x| x.contains("dir"));
-
-    let child_keys = dirs
-        .clone()
-        .iter()
-        .map(|x| x.replace("dir ", ""))
-        .collect::<Vec<String>>();
-
-    for key in child_keys {
-        let mut d = Directory::new(key.clone());
-        d.parent = Some(Rc::clone(&current_dir));
-        current_dir
-            .borrow_mut()
-            .children
-            .insert(key, Rc::new(RefCell::new(d)));
+    if get_all || total <= 100000 {
+        found.push(total);
     }
 
-    current_dir.borrow_mut().files.append(
-        &mut files
-            .iter()
-            .map(|x| {
-                let (size, name) = x.split_once(" ").unwrap();
-                File {
-                    size: size.parse().unwrap(),
-                    name: name.to_string(),
-                }
-            })
-            .collect(),
-    );
-
-    current_dir
+    (found, total)
 }
-
-// fn cd(file_system: &HashMap<String, Directory>, target: &String, current: Directory) -> Directory {
-//     let dir: Option<&Directory>;
-//     if target == ".." {
-//         dir = file_system.get(&current.parent.unwrap());
-//     } else {
-//         dir = file_system.get(target);
-//     }
-
-//     if dir.is_none() {
-//         panic!("aaaaaa")
-//     } else {
-//         dir.unwrap().clone()
-//     }
-// }
 
 fn part_one() -> i128 {
-    let mut input = get_input();
-    println!("{:#?}", input);
-    0
+    let mut found = vec![];
+    let (smalls, _) = find_dir_sizes(false, get_input(), &mut found);
+    smalls.iter().sum()
 }
 
-// fn part_two() -> i32 {
-//     0
-// }
+fn part_two() -> i128 {
+    let mut found = vec![];
+    let (all, total_dir_size) = find_dir_sizes(true, get_input(), &mut found);
+    let total_space = 70000000;
+    let required_space = 30000000;
+    let free_space = total_space - total_dir_size;
+
+    let potential_removable = all
+        .iter()
+        .filter(|x| free_space + **x > required_space)
+        .collect::<Vec<&i128>>();
+    **potential_removable.iter().min().unwrap()
+}
 
 fn main() {
     println!("part one: {}", part_one());
-    // println!("part two: {}", part_two());
+    println!("part two: {}", part_two());
 }
