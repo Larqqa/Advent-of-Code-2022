@@ -1,5 +1,5 @@
 use advent_of_Code_2022::grid::Grid;
-use std::{collections::HashMap, vec};
+use std::{collections::HashMap, path::Path, vec};
 
 const START: char = 'S';
 const END: char = 'E';
@@ -102,49 +102,55 @@ fn a_star(
 
 use image::RgbImage;
 fn draw_path(
-    name: &str,
+    name: &Path,
     path: Vec<usize>,
     height_map: HashMap<char, u16>,
-    mut grid: Grid<char>,
+    grid: Grid<char>,
 ) -> Result<(), image::ImageError> {
-    let img_buffer: Vec<u8> = vec![];
-    let gen_fac = *grid
+    let mut img_buffer: Vec<u8> = vec![];
+    let gen_fac = grid
         .points
         .iter()
-        .flatten()
+        .map(|x| *height_map.get(&x).unwrap())
         .reduce(|a, b| if a > b { a } else { b })
         .unwrap() as f32;
 
     for pix in grid.points {
-        let value = height_map.get(pix).unwrap();
+        let value = *height_map.get(&pix).unwrap() as u32;
 
         // Heatmap algo go brrrr...
         let a_fac = gen_fac * 0.66;
-        let red = if *i > a_fac as u32 {
-            255.0 * (*i as f32 / 6.0)
+        let red = if value > a_fac as u32 {
+            255.0 * (value as f32 / 6.0)
         } else {
             0.0
         };
 
         let g_fac = gen_fac * 0.33;
-        let green = if *i > g_fac as u32 && *i < (a_fac + 2.0) as u32 {
-            255.0 * (*i as f32 / (a_fac + 2.0))
+        let green = if value > g_fac as u32 && value < (a_fac + 2.0) as u32 {
+            255.0 * (value as f32 / (a_fac + 2.0))
         } else {
             0.0
         };
 
-        let blue = if *i >= 1 && *i < (g_fac + 2.0) as u32 {
-            255.0 * (*i as f32 / (g_fac + 2.0))
+        let blue = if value >= 1 && value < (g_fac + 2.0) as u32 {
+            255.0 * (value as f32 / (g_fac + 2.0))
         } else {
             0.0
         };
 
-        img_buffer.push(red);
-        img_buffer.push(green);
-        img_buffer.push(blue);
+        img_buffer.push(red as u8);
+        img_buffer.push(green as u8);
+        img_buffer.push(blue as u8);
     }
 
-    let img = RgbImage::from_raw(grid.width, grid.height, img_buffer)
+    for i in &path {
+        img_buffer[*i * 3] = 255;
+        img_buffer[*i * 3 + 1] = 255;
+        img_buffer[*i * 3 + 2] = 255;
+    }
+
+    let img = RgbImage::from_raw(grid.width as u32, grid.height as u32, img_buffer)
         .expect("Width and height should match the buffer");
     img.save(name)?;
     Ok(())
@@ -159,7 +165,13 @@ fn part_one() -> usize {
     let path = a_star(false, &input, &height_map, start, end);
     if path.is_some() {
         let pu = path.unwrap();
-        draw_path("p1.png", pu.clone(), height_map, input);
+        draw_path(
+            Path::new("src/bin/d_12/p1.png"),
+            pu.clone(),
+            height_map,
+            input,
+        )
+        .expect("Problem creating the image");
         pu.len() - 1
     } else {
         0
@@ -168,14 +180,20 @@ fn part_one() -> usize {
 
 fn part_two() -> usize {
     let height_map = generate_height_map();
-    let mut input = get_input();
+    let input = get_input();
     let start = input.points.iter().position(|x| x == &START).unwrap();
     let end = input.points.iter().position(|x| x == &END).unwrap();
 
     let path = a_star(true, &input, &height_map, end, start);
     if path.is_some() {
         let pu = path.unwrap();
-        // draw_path(pu.clone(), input);
+        draw_path(
+            Path::new("src/bin/d_12/p2.png"),
+            pu.clone(),
+            height_map,
+            input,
+        )
+        .expect("Problem creating the image");
         pu.len() - 1
     } else {
         0
