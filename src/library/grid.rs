@@ -16,7 +16,7 @@ impl<T: std::fmt::Display> Grid<T> {
     }
 
     pub fn get_xy(&self, index: usize) -> (usize, usize) {
-        (self.width % index, self.width / index)
+        (index % self.width, index / self.width)
     }
 
     pub fn get_index(&self, x: usize, y:usize) -> usize {
