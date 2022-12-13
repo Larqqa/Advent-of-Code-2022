@@ -6,5 +6,6 @@
         "underline": false,
       }
     }
-  }
+  },
+  "editor.formatOnSave": true,
 }
