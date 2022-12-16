@@ -7,16 +7,16 @@ struct Point {
 }
 
 #[derive(Debug, Clone, Copy)]
+#[allow(dead_code)]
 struct Sensor {
     location: Point,
     closest: Point,
     distance: i64,
 }
 
-fn get_input() -> (Vec<Sensor>, Vec<Point>) {
+fn get_input() -> Vec<Sensor> {
     let s: Vec<&str> = include_str!("input.txt").lines().collect();
     let mut sensors = vec![];
-    let mut beacons = vec![];
     s.iter().for_each(|x| {
         let a = x
             .replace("closest beacon is at", "")
@@ -40,22 +40,16 @@ fn get_input() -> (Vec<Sensor>, Vec<Point>) {
             closest: beacon.clone(),
             distance: manhattan_distance(sensor, beacon),
         });
-
-        beacons.push(beacon);
     });
-    (sensors, beacons)
+    sensors
 }
 
 fn manhattan_distance(p1: Point, p2: Point) -> i64 {
     let x = max(p2.x, p1.x) - min(p2.x, p1.x);
     let y = max(p2.y, p1.y) - min(p2.y, p1.y);
     x + y
-    // let a = f64::powf(2.0, x as f64);
-    // let b = f64::powf(2.0, y as f64);
-    // f64::sqrt(a + b).ceil() as i64
 }
 
-//https://stackoverflow.com/questions/3838329/how-can-i-check-if-two-segments-intersect
 fn ccw(a: Point, b: Point, c: Point) -> bool {
     (c.y - a.y) * (b.x - a.x) > (b.y - a.y) * (c.x - a.x)
 }
@@ -72,23 +66,8 @@ fn find_x(p1: Point, p2: Point, y: i64) -> i64 {
     ((y as f64 - c) / m).round() as i64
 }
 
-fn part_one() -> i64 {
-    let (sensors, beacons) = get_input();
-    // println!("{:?}", sensors);
-    let sxs = sensors.iter().map(|x| x.location.x).collect::<Vec<i64>>();
-    let sys = sensors.iter().map(|x| x.location.y).collect::<Vec<i64>>();
-    let bxs = beacons.iter().map(|x| x.x).collect::<Vec<i64>>();
-    let bys = beacons.iter().map(|x| x.y).collect::<Vec<i64>>();
-
-    let min_x = *min(sxs.iter().min(), bxs.iter().min()).unwrap();
-    let max_x = *max(sxs.iter().max(), bxs.iter().max()).unwrap();
-    let min_y = *min(sys.iter().min(), bys.iter().min()).unwrap();
-    let max_y = *max(sys.iter().max(), bys.iter().max()).unwrap();
-    // println!("bounds: {},{},{},{}", min_x, min_y, max_x, max_y);
+fn find_x_ranges_at_y(sensors: &Vec<Sensor>, y: i64) -> Vec<(i64, i64)> {
     let mut ranges = vec![];
-
-    let y = 2000000;
-    // let y = 10;
     for sensor in sensors {
         let top = Point {
             x: sensor.location.x,
@@ -124,7 +103,6 @@ fn part_one() -> i64 {
     }
 
     ranges.sort_by(|a, b| a.0.cmp(&b.0));
-    // println!("{:?}", ranges);
 
     let mut i = 1;
     let mut last_len = ranges.len();
@@ -132,9 +110,9 @@ fn part_one() -> i64 {
         while i < ranges.len() {
             let prev = ranges[i - 1];
             let curr = ranges[i];
-            if prev.0 < curr.0 && prev.1 > curr.1 {
+            if prev.0 <= curr.0 && prev.1 >= curr.1 {
                 ranges.remove(i);
-            } else if prev.1 >= curr.0 {
+            } else if prev.1 >= curr.0 || prev.1 == curr.0 - 1 {
                 ranges[i - 1].1 = curr.1;
                 ranges.remove(i);
             } else {
@@ -148,17 +126,35 @@ fn part_one() -> i64 {
             last_len = ranges.len();
         }
     }
+    ranges
+}
 
-    println!("{:?}", ranges);
-
+fn part_one() -> i64 {
+    let sensors = get_input();
+    let ranges = find_x_ranges_at_y(&sensors, 2000000);
     ranges[0].1 - ranges[0].0
 }
 
-// fn part_two() -> i32 {
-//     0
-// }
+fn part_two() -> i64 {
+    let sensors = get_input();
+    let mut ranges = vec![];
+
+    let mut y = 0;
+    while y <= 4000000 {
+        ranges = find_x_ranges_at_y(&sensors, y);
+
+        if ranges.len() > 1 {
+            break;
+        }
+
+        ranges.clear();
+        y += 1;
+    }
+
+    (ranges[0].1 + 1) * 4000000 + y
+}
 
 fn main() {
     println!("part one: {}", part_one());
-    // println!("part two: {}", part_two());
+    println!("part two: {}", part_two());
 }
